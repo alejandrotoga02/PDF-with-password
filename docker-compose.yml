@@ -1,0 +1,72 @@
+version: "3"
+services:
+  #MySQL Service
+  DB:
+    image: mysql:5.7
+    container_name: ${APP_NAME}_DB
+    restart: always
+    tty: true
+    ports:
+      - ${MYSQL_PORT}:3306
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+    volumes:
+      - pdfdbdata:/var/lib/mysql
+    networks:
+      - pdf-net
+
+  #Adminer Service
+  adminer:
+    image: adminer
+    container_name: ${APP_NAME}_adminer
+    depends_on:
+      - DB
+    restart: unless-stopped
+    ports:
+      - ${ADMINER_PORT}:8080
+
+  #PHP Service
+  app:
+    build:
+      context: ./laravel
+    container_name: ${APP_NAME}_app
+    restart: unless-stopped
+    tty: true
+    working_dir: /var/www
+    volumes:
+      - ./laravel:/var/www
+      - pdfapivendor:/var/www/vendor
+    networks:
+      - pdf-net
+    depends_on:
+      - DB
+
+  #Nginx Service
+  webserver:
+    image: nginx:alpine
+    container_name: ${APP_NAME}_server
+    restart: unless-stopped
+    tty: true
+    ports:
+      - ${APP_PORT}:8080
+    volumes:
+      - ./laravel:/var/www
+      - ./nginx/app.conf:/etc/nginx/conf.d/app.conf
+    networks:
+      - pdf-net
+    depends_on:
+      - DB
+      - app
+
+#Docker Networks
+networks:
+  pdf-net:
+    driver: bridge
+
+#Volumes
+volumes:
+  pdfapivendor:
+  pdfdbdata:
